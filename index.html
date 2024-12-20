@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blockchain Wallet</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/babel-standalone@6.26.0/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide-react@0.15.1/dist/lucide-react.umd.min.js"></script>
+</head>
+<body class="bg-gray-50">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    const { X, Send, AlertTriangle, CheckCircle, Clock } = lucideReact;
+
+    const BlockchainWallet = () => {
+      const [connected, setConnected] = useState(true);
+      const [balance, setBalance] = useState(1000000000000000000000000.23456789);
+      const [pendingBalance, setPendingBalance] = useState(0.01234567);
+      const [showTransferModal, setShowTransferModal] = useState(false);
+      const [recipient, setRecipient] = useState('');
+      const [amount, setAmount] = useState('');
+      const [transactions, setTransactions] = useState([
+        {
+          id: 'TX-FF5E23',
+          status: 'PENDING',
+          amount: 0.5,
+          recipient: 'John Doe',
+          timestamp: '12:34:56'
+        }
+      ]);
+      const [alerts, setAlerts] = useState([
+        { id: 1, message: '거래가 시작되었습니다: 0.50000000 BTC' }
+      ]);
+
+      const formatBTC = (value) => {
+        return Number(value).toFixed(8);
+      };
+
+      const addAlert = (message) => {
+        const newAlert = {
+          id: Date.now(),
+          message
+        };
+        setAlerts(prev => [newAlert, ...prev].slice(0, 3));
+      };
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!recipient || !amount) return;
+
+        const transactionFeeRate = 0.0001;
+        const parsedAmount = parseFloat(amount);
+        const transactionFee = parsedAmount * transactionFeeRate;
+        const totalAmount = parsedAmount + transactionFee;
+
+        if (balance < totalAmount) {
+          addAlert('잔액이 부족합니다.');
+          return;
+        }
+
+        const newTx = {
+          id: 'TX-' + Math.random().toString(16).slice(2, 8).toUpperCase(),
+          status: 'PENDING',
+          amount: parsedAmount,
+          recipient,
+          timestamp: new Date().toLocaleTimeString()
+        };
+
+        setTransactions(prev => [newTx, ...prev]);
+        setBalance(prev => prev - totalAmount);
+        setPendingBalance(prev => prev + parsedAmount);
+        addAlert(`거래가 시작되었습니다: ${formatBTC(parsedAmount)} BTC (수수료: ${formatBTC(transactionFee)} BTC)`);
+        setShowTransferModal(false);
+        setRecipient('');
+        setAmount('');
+
+        setTimeout(() => {
+          setTransactions(prev => prev.map(tx => tx.id === newTx.id ? { ...tx, status: 'COMPLETED' } : tx));
+          setPendingBalance(prev => prev - parsedAmount);
+        }, 5000);
+      };
+
+      const toggleConnection = () => {
+        setConnected(prev => !prev);
+        addAlert(`연결이 ${!connected ? '설정' : '해제'}되었습니다`);
+      };
+
+      useEffect(() => {
+        const interval = setInterval(() => {
+          if (Math.random() < 0.1) {
+            toggleConnection();
+          }
+        }, 5000);
+        return () => clearInterval(interval);
+      }, [connected]);
+
+      return (
+        <div className="min-h-screen bg-gray-50">
+          <header className="bg-white shadow">
+            <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex justify-between items-center">
+              <h1 className="text-3xl font-bold text-gray-900">Blockchain Wallet</h1>
+              <div className="flex items-center gap-4">
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                  connected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}>
+                  {connected ? 'Connected' : 'Disconnected'}
+                </span>
+                <button
+                  onClick={toggleConnection}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                >
+                  {connected ? 'Disconnect' : 'Connect'}
+                </button>
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h2 className="text-lg font-medium text-gray-900 mb-2">Available Balance</h2>
+                  <p className="text-3xl font-bold text-gray-900">{formatBTC(balance)} BTC</p>
+                </div>
+                <div>
+                  <h2 className="text-lg font-medium text-gray-900 mb-2">Pending Balance</h2>
+                  <p className="text-3xl font-bold text-gray-500">{formatBTC(pendingBalance)} BTC</p>
+                </div>
+              </div>
+              <div className="mt-6">
+                <button
+                  onClick={() => setShowTransferModal(true)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Transfer
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              {alerts.map(alert => (
+                <div key={alert.id} className="bg-yellow-100 p-4 rounded-lg shadow">
+                  <p className="text-yellow-800 font-medium">{alert.message}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-medium text-gray-900">Recent Transactions</h2>
+              </div>
+              <div className="divide-y divide-gray-200">
+                {transactions.map(tx => (
+                  <div key={tx.id} className="px-6 py-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">To: {tx.recipient}</p>
+                        <p className="text-sm text-gray-500">{tx.id} • {tx.timestamp}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-gray-900">{formatBTC(tx.amount)} BTC</p>
+                        <p className={`text-sm ${
+                          tx.status === 'COMPLETED' ? 'text-green-600' : 'text-yellow-600'
+                        }`}>
+                          {tx.status === 'COMPLETED' ? (
+                            <span className="inline-flex items-center">
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                              Completed
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center">
+                              <Clock className="w-4 h-4 mr-1" />
+                              Pending
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </main>
+
+          {showTransferModal && (
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
+              <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+                <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                  <h3 className="text-lg font-medium text-gray-900">Transfer BTC</h3>
+                  <button
+                    onClick={() => setShowTransferModal(false)}
+                    className="text-gray-400 hover:text-gray-500"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <form onSubmit={handleSubmit} className="p-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="recipient" className="block text-sm font-medium text-gray-700">
+                        Recipient
+                      </label>
+                      <input
+                        type="text"
+                        id="recipient"
+                        value={recipient}
+                        onChange={(e) => setRecipient(e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter recipient address"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
+                        Amount (BTC)
+                      </label>
+                      <input
+                        type="number"
+                        id="amount"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="0.00000000"
+                        step="0.00000001"
+                      />
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      Transaction fee: {amount ? formatBTC(parseFloat(amount) * 0.0001) : '0.00000000'} BTC
+                    </p>
+                  </div>
+                  <div className="mt-6">
+                    <button
+                      type="submit"
+                      className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      <Send className="w-4 h-4 mr-2" />
+                      Send Transaction
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    ReactDOM.render(<BlockchainWallet />, document.getElementById('root'));
+  </script>
+</body>
+</html>
